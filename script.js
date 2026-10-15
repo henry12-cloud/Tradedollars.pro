@@ -852,3 +852,114 @@ function renderObservations() {
       <strong>${escapeHTML(item.strategy)}</strong>
       <div>${escapeHTML(item.time)}</div>
       
+      <div>Market: ${escapeHTML(item.market)}</div>
+      <div>Sample size: ${escapeHTML(item.sampleSize)}</div>
+      <div>Latest digit: ${escapeHTML(item.lastDigit ?? "--")}</div>
+      <p>${escapeHTML(item.notes)}</p>
+    </article>
+  `).join("");
+}
+
+/* ---------------- EVENT HANDLERS ---------------- */
+
+function bindEvents() {
+  const marketSelect = $("marketSelect");
+
+  if (marketSelect) {
+    marketSelect.addEventListener("change", () => {
+      const selected = state.markets.find(
+        market => market.symbol === marketSelect.value
+      );
+
+      if (!selected) return;
+
+      state.symbol = selected.symbol;
+      state.symbolName = selected.display_name;
+
+      setText(
+        ["selectedMarket"],
+        `Selected market: ${state.symbolName}`
+      );
+
+      subscribeToSelectedMarket();
+    });
+  }
+
+  const startButton = $("startMonitor", "startSignalMonitor");
+
+  if (startButton) {
+    startButton.addEventListener("click", startSignalMonitor);
+  }
+
+  const stopButton = $("stopMonitor", "stopSignalMonitor");
+
+  if (stopButton) {
+    stopButton.addEventListener("click", stopSignalMonitor);
+  }
+
+  const recordButton = $("recordObservation", "recordButton");
+
+  if (recordButton) {
+    recordButton.addEventListener("click", recordObservation);
+  }
+
+  const buyButton = $("buyBtn", "confirmBuy", "confirmBuyButton");
+
+  if (buyButton) {
+    buyButton.disabled = true;
+    buyButton.textContent = "CONFIRM BUY — DISABLED";
+    buyButton.title = "Orders are disabled in this build.";
+  }
+
+  const refreshButton = $("refreshAccount", "refreshAccountButton");
+
+  if (refreshButton) {
+    refreshButton.addEventListener("click", () => {
+      setText(
+        ["accountStatus"],
+        "Account integration will be added after the public market feed is verified."
+      );
+    });
+  }
+}
+
+/* ---------------- INITIALIZATION ---------------- */
+
+function startApp() {
+  setAppStatus(
+    "Application running. Starting public market feed...",
+    "#d97706"
+  );
+
+  setText(["accountStatus"], "Account integration pending.");
+  setText(["accountId"], "--");
+  setText(["accountBalance", "balance"], "--");
+
+  bindEvents();
+  renderLiveValues();
+  renderDigitHistory();
+  renderDigitAnalysis();
+  renderSignal();
+  renderObservations();
+
+  connectPublicSocket();
+}
+
+/* ---------------- SAFETY CHECK ---------------- */
+
+if (REAL_MONEY_TRADING_ENABLED || ORDERS_ENABLED) {
+  throw new Error(
+    "Safety check failed: real-money trading and orders must remain disabled."
+  );
+}
+
+/* ---------------- START APPLICATION ---------------- */
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp, {
+    once: true
+  });
+} else {
+  startApp();
+}
+   
