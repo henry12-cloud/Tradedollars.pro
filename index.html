@@ -254,9 +254,21 @@ function connect() {
     if (msg.msg_type==="tick" && msg.tick) processTick(msg.tick);
   };
 
-  socket.onerror=() => {
-    if (state.socket===socket) setStatus("Connection issue — retrying");
-  };
+socket.onerror = () => {
+  if (state.socket === socket) {
+    setStatus("WebSocket error — check connection");
+    console.error("Deriv WebSocket error");
+  }
+};
+
+socket.onclose = (event) => {
+  if (state.socket !== socket || state.intentionalClose) return;
+
+  setStatus("Disconnected — code " + event.code);
+  console.log("Deriv WebSocket closed:", event.code, event.reason);
+
+  state.reconnectTimer = setTimeout(connect, 3000);
+};
   socket.onclose=() => {
     if (state.socket!==socket || state.intentionalClose) return;
     setStatus("Disconnected — reconnecting");
