@@ -226,55 +226,108 @@ function extractDigit(quote, pipSize) {
   return Number(digitsOnly.slice(-1));
 }
 
-function connect() {
-  state.intentionalClose=false;
-  if (state.socket) {
-    try { state.socket.close(); } catch (_) {}
-  }
-  clearTimeout(state.reconnectTimer);
-  setStatus("Connecting…");
-  const socket = new WebSocket(WS_URL);
-  state.socket=socket;
 
-  socket.onopen=() => {
-    if (state.socket!==socket) return;
-    setStatus("Live market connected",true);
-    socket.send(JSON.stringify({ticks:state.symbol,subscribe:1}));
+function connect() {
+  clearTimeout(state.reconnectTimer);
+
+  if (state.socket) {
+    const oldSocket = state.socket;
+    state.socket = null;
+    oldSocket.onclose = null;
+    oldSocket.onerror = null;
+    oldSocket.onmessage = null;
+
+    try {
+      oldSocket.close();
+    } catch (_) {}
+  }
+
+  setStatus("Connecting to Deriv…");
+
+  const socket = new WebSocket(
+    "wss://ws.derivws.com/websockets/v3?app_id=1089"
+  );
+
+  state.socket = socket;
+
+  const connectionTimeout = setTimeout(() => {
+    if (
+      state.socket === socket &&
+      socket.readyState !== WebSocket.OPEN
+    ) {
+      setStatus("Connection timed out");
+      socket.close();
+    }
+  }, 12000);
+
+  socket.onopen = () => {
+    if (state.socket !== socket) return;
+
+    clearTimeout(connectionTimeout);
+    setStatus("Connected — requesting market ticks");
+
+    socket.send(JSON.stringify({
+      ticks: state.symbol,
+      subscribe: 1
+    }));
   };
 
-  socket.onmessage=event => {
-    if (state.socket!==socket) return;
-    let msg;
-    try { msg=JSON.parse(event.data); } catch (_) { return; }
+  socket.onmessage = (event) => {
+    if (state.socket !== socket) return;
 
-    if (msg.error) {
-      setStatus("Market feed error: "+msg.error.message);
+    let msg;
+
+    try {
+      msg = JSON.parse(event.data);
+    } catch (_) {
+      setStatus("Invalid response from market server");
       return;
     }
-    if (msg.msg_type==="tick" && msg.tick) processTick(msg.tick);
+
+    if (msg.error) {
+      setStatus("Deriv error: " + msg.error.message);
+      console.error("Deriv API error:", msg.error);
+      return;
+    }
+
+    if (msg.msg_type === "tick" && msg.tick) {
+      setStatus("Live market connected", true);
+      processTick(msg.tick);
+      return;
+    }
+
+    if (msg.msg_type === "ping") return;
+
+    if (msg.msg_type === "tick" && !msg.tick) {
+      setStatus("Connected; waiting for ticks");
+    }
   };
 
-socket.onerror = () => {
-  if (state.socket === socket) {
-    setStatus("WebSocket error — check connection");
-    console.error("Deriv WebSocket error");
+  socket.onerror = () => {
+    if (state.socket === socket) {
+      setStatus("WebSocket error — check connection");
+    }
+  };
+
+  socket.onclose = (event) => {
+    clearTimeout(connectionTimeout);
+
+    if (state.socket !== socket) return;
+
+    state.socket = null;
+
+    const reason = event.reason
+      ? " — " + event.reason
+      : "";
+
+    setStatus(
+      "Disconnected — code " + event.code + reason
+    );
+
+    state.reconnectTimer = setTimeout(connect, 4000);
+  };
   }
-};
-
-socket.onclose = (event) => {
-  if (state.socket !== socket || state.intentionalClose) return;
-
-  setStatus("Disconnected — code " + event.code);
-  console.log("Deriv WebSocket closed:", event.code, event.reason);
-
-  state.reconnectTimer = setTimeout(connect, 3000);
-};
-  socket.onclose=() => {
-    if (state.socket!==socket || state.intentionalClose) return;
-    setStatus("Disconnected — reconnecting");
-    state.reconnectTimer=setTimeout(connect,3000);
-  };
-}
+  
 
 function processTick(tick) {
   const quote=Number(tick.quote);
