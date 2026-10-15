@@ -1,0 +1,17 @@
+
+{
+  "name": "tradedollars",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TradeDollars signal-only market analysis interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
