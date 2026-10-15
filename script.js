@@ -1,54 +1,76 @@
 
 /* =========================================================
-   TRADEDOLLARS.PRO — LIVE MARKET MONITOR + SHARP BOT
-   Public market data only.
-   Signal-only mode: no order placement.
-   Real-money trading: DISABLED.
+   TRADEDOLLARS — OLD DASHBOARD COMPATIBLE SCRIPT
+   Public market feed + digit analysis + Sharp Bot
+   Signal-only mode. No orders. Real trading disabled.
    ========================================================= */
 
 "use strict";
 
 /* ---------------- CONFIGURATION ---------------- */
 
-const APP_ID = "1089";
-const WS_URL =
-  `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+const APP_ID = "34qPaViEQZZw84Mc5thoO";
+const PUBLIC_WS_URL =
+  `wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(APP_ID)}`;
 
 const DEFAULT_SYMBOL = "1HZ100V";
 const MAX_DIGITS = 2000;
 const MAX_PRICES = 100;
 const MIN_ANALYSIS_TICKS = 50;
-const RECONNECT_DELAY = 2500;
-const MAX_RECONNECT_DELAY = 30000;
+const BASE_RECONNECT_DELAY_MS = 2000;
+const MAX_RECONNECT_DELAY_MS = 30000;
 
-/* Safety locks: this script contains no trading requests. */
+/* Permanent safety locks */
 const ORDERS_ENABLED = false;
 const REAL_MONEY_TRADING_ENABLED = false;
 
 /* ---------------- ELEMENT HELPERS ---------------- */
 
-const $ = id => document.getElementById(id);
+const $ = (...ids) => {
+  for (const id of ids) {
+    const element = document.getElementById(id);
+    if (element) return element;
+  }
+  return null;
+};
 
-const setText = (id, value) => {
-  const element = $(id);
+function setText(ids, value) {
+  const element = Array.isArray(ids) ? $(...ids) : $(ids);
   if (element) element.textContent = String(value);
-};
+}
 
-const setClass = (id, className) => {
-  const element = $(id);
-  if (element) element.className = className;
-};
+function setStatus(ids, message, color) {
+  const element = Array.isArray(ids) ? $(...ids) : $(ids);
+  if (!element) return;
 
-/* ---------------- APPLICATION STATE ---------------- */
+  element.textContent = message;
+
+  if (color) element.style.color = color;
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
+/* ---------------- STATE ---------------- */
 
 const state = {
   socket: null,
   symbol: DEFAULT_SYMBOL,
   symbolName: "Volatility 100 (1s) Index",
+
   connected: false,
   manuallyStopped: false,
   reconnectTimer: null,
   reconnectAttempts: 0,
+  connectionTimer: null,
+
   requestId: 1,
   subscriptionId: null,
 
@@ -58,31 +80,50 @@ const state = {
   lastDigit: null,
   pipSize: 2,
 
-  prices: [],
-  digits: [],
-  digitCounts: Array(10).fill(0)
+  priceHistory: [],
+  digitHistory: [],
+  digitCounts: Array(10).fill(0),
+
+  monitorRunning: false,
+  observations: []
 };
 
-/* ---------------- STATUS DISPLAY ---------------- */
+/* ---------------- STATUS HELPERS ---------------- */
 
-function updateConnection(message, color) {
-  setText("connectionStatus", message);
-
-  const dot = $("statusDot");
-  if (dot) dot.style.background = color;
+function setAppStatus(message, color) {
+  setStatus("appStatus", message, color);
 }
 
-function updateApp(message, color) {
-  updateConnection(message, color);
+function setMarketStatus(message, color) {
+  setStatus("marketStatus", message, color);
 }
 
-/* ---------------- SAFE SOCKET SEND ---------------- */
+function setPriceStatus(message, color) {
+  setStatus("priceStatus", message, color);
+}
+
+function setBotStatus(message, color) {
+  setStatus("botStatus", message, color);
+}
+
+function setConnectionStatus(message, color) {
+  setStatus(
+    ["connectionStatus", "publicConnectionStatus"],
+    message,
+    color
+  );
+}
+
+function updateConnectionDisplay(message, color) {
+  setConnectionStatus(message, color);
+  setMarketStatus(message, color);
+}
+
+/* ---------------- WEBSOCKET REQUESTS ---------------- */
 
 function sendRequest(payload) {
-  if (
-    !state.socket ||
-    state.socket.readyState !== WebSocket.OPEN
-  ) {
+  if (!state.socket ||
+      state.socket.readyState !== WebSocket.OPEN) {
     return false;
   }
 
@@ -98,54 +139,75 @@ function sendRequest(payload) {
   }
 }
 
-/* ---------------- CONNECTION ---------------- */
+/* ---------------- CONNECT TO PUBLIC MARKET DATA ---------------- */
 
-function connectMarket() {
-  state.manuallyStopped = false;
-  clearTimeout(state.reconnectTimer);
-  state.reconnectTimer = null;
-
-  if (
-    state.socket &&
-    (
-      state.socket.readyState === WebSocket.OPEN ||
-      state.socket.readyState === WebSocket.CONNECTING
-    )
-  ) {
-    try {
-      state.socket.close();
-    } catch (_) {}
+function connectPublicSocket() {
+  if (state.socket &&
+      (state.socket.readyState === WebSocket.OPEN ||
+       state.socket.readyState === WebSocket.CONNECTING)) {
+    return;
   }
 
-  state.connected = false;
-  updateConnection("Connecting to Deriv market data…", "#ffc76b");
-  setText("price", "Connecting…");
+  state.manuallyStopped = false;
+  clearTimeout(state.reconnectTimer);
+  clearTimeout(state.connectionTimer);
+
+  updateConnectionDisplay(
+    "Connecting to public market data...",
+    "#d97706"
+  );
+
+  setPriceStatus("Connecting to live market data...", "#d97706");
+  setAppStatus("Connecting to market feed...", "#d97706");
 
   let socket;
 
   try {
-    socket = new WebSocket(WS_URL);
+    socket = new WebSocket(PUBLIC_WS_URL);
     state.socket = socket;
   } catch (error) {
-    console.error("Could not create market connection:", error);
-    scheduleReconnect();
+    console.error("Could not create WebSocket:", error);
+    handleConnectionFailure("Could not start market connection.");
     return;
   }
+
+  state.connectionTimer = setTimeout(() => {
+    if (state.socket === socket &&
+        socket.readyState !== WebSocket.OPEN) {
+      try {
+        socket.close();
+      } catch (_) {}
+
+      handleConnectionFailure(
+        "Market connection timed out. Retrying..."
+      );
+    }
+  }, 12000);
 
   socket.addEventListener("open", () => {
     if (state.socket !== socket) return;
 
+    clearTimeout(state.connectionTimer);
     state.connected = true;
     state.reconnectAttempts = 0;
 
-    updateConnection("Connected — loading markets…", "#35d49a");
+    updateConnectionDisplay(
+      "Connected. Loading available markets...",
+      "#15803d"
+    );
+
+    setAppStatus("Public market connection established.", "#15803d");
 
     const sent = sendRequest({
       active_symbols: "brief",
       product_type: "basic"
     });
 
-    if (!sent) scheduleReconnect();
+    if (!sent) {
+      handleConnectionFailure(
+        "Could not request available markets."
+      );
+    }
   });
 
   socket.addEventListener("message", event => {
@@ -156,164 +218,210 @@ function connectMarket() {
     try {
       message = JSON.parse(event.data);
     } catch (error) {
-      console.error("Unreadable market response:", error);
+      console.error("Invalid market response:", error);
+      setMarketStatus("Received an unreadable market response.", "#dc2626");
       return;
     }
 
-    handleMessage(message);
+    handlePublicMessage(message);
   });
 
   socket.addEventListener("error", error => {
-    console.error("Market WebSocket error:", error);
-    updateConnection("Market connection error", "#ff6b7a");
+    console.error("Public market socket error:", error);
+    setConnectionStatus("Market connection error.", "#dc2626");
   });
 
-  socket.addEventListener("close", () => {
+  socket.addEventListener("close", event => {
     if (state.socket !== socket) return;
 
+    clearTimeout(state.connectionTimer);
     state.socket = null;
     state.connected = false;
     state.subscriptionId = null;
 
     if (!state.manuallyStopped) {
-      updateConnection("Disconnected — reconnecting…", "#ffc76b");
-      scheduleReconnect();
+      const reason = event.reason
+        ? `Connection closed: ${event.reason}`
+        : `Connection closed (code ${event.code}).`;
+
+      handleConnectionFailure(`${reason} Reconnecting...`);
     }
   });
+}
+
+function handleConnectionFailure(message) {
+  clearTimeout(state.connectionTimer);
+
+  updateConnectionDisplay(message, "#dc2626");
+  setPriceStatus(message, "#dc2626");
+  setAppStatus(message, "#dc2626");
+
+  if (!state.manuallyStopped) scheduleReconnect();
 }
 
 function scheduleReconnect() {
   if (state.manuallyStopped || state.reconnectTimer) return;
 
   const delay = Math.min(
-    RECONNECT_DELAY * Math.pow(2, state.reconnectAttempts),
-    MAX_RECONNECT_DELAY
+    BASE_RECONNECT_DELAY_MS * Math.pow(2, state.reconnectAttempts),
+    MAX_RECONNECT_DELAY_MS
   );
 
   state.reconnectAttempts++;
 
-  updateConnection(
-    `Disconnected — retrying in ${Math.ceil(delay / 1000)}s…`,
-    "#ffc76b"
+  setConnectionStatus(
+    `Reconnecting in ${Math.ceil(delay / 1000)} seconds...`,
+    "#d97706"
   );
 
   state.reconnectTimer = setTimeout(() => {
     state.reconnectTimer = null;
-    connectMarket();
+    connectPublicSocket();
   }, delay);
 }
 
-/* ---------------- MESSAGE HANDLING ---------------- */
+function stopPublicSocket() {
+  state.manuallyStopped = true;
+  clearTimeout(state.connectionTimer);
+  clearTimeout(state.reconnectTimer);
 
-function handleMessage(message) {
+  state.connectionTimer = null;
+  state.reconnectTimer = null;
+
+  if (state.socket) {
+    const socket = state.socket;
+    state.socket = null;
+    state.connected = false;
+
+    try {
+      socket.close();
+    } catch (error) {
+      console.warn("Socket close issue:", error);
+    }
+  }
+
+  updateConnectionDisplay("Market feed stopped.", "#64748b");
+}
+
+/* ---------------- HANDLE PUBLIC MESSAGES ---------------- */
+
+function handlePublicMessage(message) {
   if (message.error) {
-    const reason =
-      message.error.message || "Unknown market API error";
+    const code = message.error.code || "API error";
+    const reason = message.error.message || "Unknown market error";
 
-    console.error("Deriv API error:", message.error);
+    console.error("Deriv market error:", code, reason);
 
-    updateConnection(`Market API: ${reason}`, "#ff6b7a");
+    const errorText = `Market API error (${code}): ${reason}`;
+
+    setMarketStatus(errorText, "#dc2626");
+    setConnectionStatus(errorText, "#dc2626");
+    setPriceStatus(errorText, "#dc2626");
     return;
   }
 
   if (message.msg_type === "active_symbols") {
-    loadMarkets(message.active_symbols || []);
+    handleActiveSymbols(message.active_symbols || []);
     return;
   }
 
   if (message.msg_type === "tick" && message.tick) {
+    if (message.subscription && message.subscription.id) {
+      state.subscriptionId = message.subscription.id;
+    }
+
     handleTick(message.tick);
   }
 }
 
-/* ---------------- MARKET SELECTOR ---------------- */
+/* ---------------- AVAILABLE MARKETS ---------------- */
 
-function loadMarkets(markets) {
-  const select = $("market");
-
-  if (!Array.isArray(markets) || markets.length === 0) {
-    updateConnection("Connected, but no markets were returned", "#ff6b7a");
+function handleActiveSymbols(symbols) {
+  if (!Array.isArray(symbols) || symbols.length === 0) {
+    setMarketStatus(
+      "Connected, but no markets were returned by the API.",
+      "#dc2626"
+    );
     return;
   }
 
-  if (!select) {
-    updateConnection("Market selector was not found", "#ff6b7a");
-    return;
-  }
-
-  const validMarkets = markets
+  state.markets = symbols
     .filter(item => item && item.symbol && item.display_name)
     .sort((a, b) =>
-      a.display_name.localeCompare(b.display_name)
+      String(a.display_name).localeCompare(String(b.display_name))
     );
 
-  if (!validMarkets.length) {
-    updateConnection("No usable markets in the response", "#ff6b7a");
+  const select = $("marketSelect", "market");
+
+  if (!select) {
+    setMarketStatus(
+      `${state.markets.length} markets received, but the market selector was not found.`,
+      "#dc2626"
+    );
     return;
   }
 
-  const previousSelection = state.symbol;
+  const previousSymbol = state.symbol;
 
   select.innerHTML = "";
 
-  validMarkets.forEach(market => {
+  state.markets.forEach(market => {
     const option = document.createElement("option");
     option.value = market.symbol;
     option.textContent = market.display_name;
     select.appendChild(option);
   });
 
-  const selected =
-    validMarkets.find(item => item.symbol === previousSelection) ||
-    validMarkets.find(item => item.symbol === DEFAULT_SYMBOL) ||
-    validMarkets[0];
+  const chosen =
+    state.markets.find(item => item.symbol === previousSymbol) ||
+    state.markets.find(item => item.symbol === DEFAULT_SYMBOL) ||
+    state.markets[0];
 
-  select.value = selected.symbol;
-  state.symbol = selected.symbol;
-  state.symbolName = selected.display_name;
+  state.symbol = chosen.symbol;
+  state.symbolName = chosen.display_name;
+  select.value = state.symbol;
 
-  updateConnection(
-    `Connected — ${validMarkets.length} markets available`,
-    "#35d49a"
+  setMarketStatus(
+    `${state.markets.length} markets loaded.`,
+    "#15803d"
   );
 
-  subscribeToMarket();
+  setText(
+    ["selectedMarket"],
+    `Selected market: ${state.symbolName}`
+  );
+
+  subscribeToSelectedMarket();
 }
 
-/* ---------------- TICK SUBSCRIPTION ---------------- */
+/* ---------------- SUBSCRIBE TO SELECTED MARKET ---------------- */
 
-function subscribeToMarket() {
-  if (
-    !state.socket ||
-    state.socket.readyState !== WebSocket.OPEN
-  ) {
-    updateConnection("Waiting for market connection…", "#ffc76b");
+function subscribeToSelectedMarket() {
+  if (!state.socket ||
+      state.socket.readyState !== WebSocket.OPEN) {
+    setPriceStatus(
+      "Markets loaded. Waiting for public connection...",
+      "#d97706"
+    );
     return;
   }
 
-  /* Forget only the previous tick subscription. */
   if (state.subscriptionId) {
-    sendRequest({
-      forget: state.subscriptionId
-    });
+    sendRequest({ forget: state.subscriptionId });
     state.subscriptionId = null;
   }
 
   state.totalTicks = 0;
+  state.priceHistory = [];
+  state.digitHistory = [];
+  state.digitCounts = Array(10).fill(0);
   state.lastPrice = null;
   state.previousPrice = null;
   state.lastDigit = null;
-  state.prices = [];
-  state.digits = [];
-  state.digitCounts = Array(10).fill(0);
 
   renderAll();
 
-  setText("price", "Waiting for ticks…");
-  setText("priceChange", "Price change: —");
-  setText("tickCount", "0 ticks");
-
-  updateConnection(`Subscribing to ${state.symbolName}…`, "#ffc76b");
+  setPriceStatus(`Subscribing to ${state.symbolName}...`, "#d97706");
 
   const sent = sendRequest({
     ticks: state.symbol,
@@ -321,17 +429,16 @@ function subscribeToMarket() {
   });
 
   if (!sent) {
-    updateConnection("Could not subscribe to market ticks", "#ff6b7a");
+    setPriceStatus("Could not request market ticks.", "#dc2626");
   }
 }
 
-/* ---------------- LIVE TICK PROCESSING ---------------- */
+/* ---------------- PROCESS LIVE TICKS ---------------- */
 
 function handleTick(tick) {
   if (tick.symbol && tick.symbol !== state.symbol) return;
 
   const price = Number(tick.quote);
-
   if (!Number.isFinite(price)) return;
 
   if (Number.isInteger(tick.pip_size)) {
@@ -348,331 +455,384 @@ function handleTick(tick) {
   state.lastDigit = digit;
   state.totalTicks++;
 
-  state.prices.push({
+  state.priceHistory.push({
     price,
     time: Number(tick.epoch) || Date.now() / 1000
   });
 
-  if (state.prices.length > MAX_PRICES) {
-    state.prices.shift();
+  if (state.priceHistory.length > MAX_PRICES) {
+    state.priceHistory.shift();
   }
 
-  state.digits.push(digit);
+  state.digitHistory.push(digit);
   state.digitCounts[digit]++;
 
-  if (state.digits.length > MAX_DIGITS) {
-    const removed = state.digits.shift();
+  if (state.digitHistory.length > MAX_DIGITS) {
+    const removed = state.digitHistory.shift();
     state.digitCounts[removed]--;
   }
 
-  if (state.totalTicks % 10 === 0) {
-    console.debug("TradeDollars ticks received:", state.totalTicks);
-  }
+  setPriceStatus(
+    `Live feed active. Received ${state.totalTicks} ticks.`,
+    "#15803d"
+  );
 
-  updateConnection("Connected — live feed active", "#35d49a");
+  setConnectionStatus("Connected — live feed active.", "#15803d");
+
   renderAll();
 }
 
-/* ---------------- LIVE PRICE ---------------- */
+/* ---------------- LIVE VALUES ---------------- */
 
-function renderPrice() {
-  if (state.lastPrice === null) {
-    setText("price", "Waiting for ticks…");
-    setText("priceChange", "Price change: —");
-    return;
-  }
-
-  setText("price", state.lastPrice.toFixed(state.pipSize));
-
-  if (state.previousPrice === null) {
-    setText("priceChange", "Price change: collecting baseline");
-    setClass("priceChange", "small muted");
-    return;
-  }
-
-  const difference = state.lastPrice - state.previousPrice;
-  const prefix = difference > 0 ? "+" : "";
+function renderLiveValues() {
+  setText(
+    ["livePrice", "latestPrice"],
+    state.lastPrice === null ? "--" : state.lastPrice.toFixed(state.pipSize)
+  );
 
   setText(
-    "priceChange",
-    `Price change: ${prefix}${difference.toFixed(state.pipSize)}`
+    ["activeDigit", "liveDigit", "lastDigit"],
+    state.lastDigit === null ? "--" : state.lastDigit
   );
 
-  setClass(
-    "priceChange",
-    `small ${difference > 0 ? "up" : difference < 0 ? "down" : "neutral"}`
+  setText(
+    ["ticksReceived", "tickCount", "totalTicks"],
+    state.totalTicks
   );
 
-  setText("tickCount", `${state.totalTicks} ticks`);
-  setText("historyCount", state.digits.length);
+  setText(
+    ["selectedMarket"],
+    `Selected market: ${state.symbolName}`
+  );
 }
 
-/* ---------------- SVG PRICE CHART ---------------- */
+/* ---------------- RECENT DIGITS ---------------- */
 
-function renderChart() {
-  const chart = $("chart");
-  if (!chart) return;
+function renderDigitHistory() {
+  const container = $("digitHistory", "history");
 
-  if (state.prices.length < 2) {
-    chart.innerHTML = `
-      <text x="350" y="95" fill="#9eb0ca"
-        text-anchor="middle">Waiting for live market data…</text>`;
+  if (!container) return;
+
+  if (!state.digitHistory.length) {
+    container.textContent = "Waiting for live digits...";
     return;
   }
 
-  const values = state.prices.map(item => item.price);
+  container.innerHTML = state.digitHistory
+    .slice(-30)
+    .reverse()
+    .map(digit => {
+      const parity = digit % 2 === 0 ? "even" : "odd";
+      return `<span class="digit-item ${parity}">${digit}</span>`;
+    })
+    .join("");
+}
+
+/* ---------------- PRICE CHART ---------------- */
+
+function renderPriceChart() {
+  const canvas = $("priceChart");
+
+  if (canvas && typeof canvas.getContext === "function") {
+    renderCanvasChart(canvas);
+    return;
+  }
+
+  const svg = $("chart");
+
+  if (!svg) return;
+
+  if (state.priceHistory.length < 2) {
+    svg.innerHTML = `
+      <text x="350" y="95" fill="#9eb0ca" text-anchor="middle">
+        Waiting for live market data...
+      </text>`;
+    return;
+  }
+
+  const values = state.priceHistory.map(item => item.price);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const spread = max - min || 0.000001;
 
-  const left = 18;
-  const right = 682;
-  const top = 16;
-  const bottom = 158;
-
   const points = values.map((value, index) => {
-    const x = left + index / (values.length - 1) * (right - left);
-    const y = top + (max - value) / spread * (bottom - top);
+    const x = 18 + index / (values.length - 1) * 664;
+    const y = 16 + (max - value) / spread * 142;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
 
-  const direction =
+  const color =
     values[values.length - 1] > values[0] ? "#35d49a" :
     values[values.length - 1] < values[0] ? "#ff6b7a" : "#55e4ef";
 
-  chart.innerHTML = `
-    <defs>
-      <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${direction}" stop-opacity=".25"/>
-        <stop offset="100%" stop-color="${direction}" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
+  svg.innerHTML = `
     <g stroke="#263b59" stroke-width="1">
       <line x1="18" y1="50" x2="682" y2="50"/>
       <line x1="18" y1="90" x2="682" y2="90"/>
       <line x1="18" y1="130" x2="682" y2="130"/>
     </g>
-    <polygon points="${left},${bottom} ${points} ${right},${bottom}"
-      fill="url(#chartFill)"/>
-    <polyline points="${points}" fill="none"
-      stroke="${direction}" stroke-width="2.5"
-      stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="${points}" fill="none" stroke="${color}"
+      stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     <text x="18" y="180" fill="#9eb0ca" font-size="11">
       Low: ${min.toFixed(state.pipSize)}
     </text>
-    <text x="682" y="180" fill="#9eb0ca" font-size="11"
-      text-anchor="end">High: ${max.toFixed(state.pipSize)}</text>
-  `;
+    <text x="682" y="180" fill="#9eb0ca" font-size="11" text-anchor="end">
+      High: ${max.toFixed(state.pipSize)}
+    </text>`;
 }
 
-/* ---------------- DIGIT STATISTICS ---------------- */
+function renderCanvasChart(canvas) {
+  const context = canvas.getContext("2d");
+  if (!context) return;
 
-function renderDigits() {
-  const container = $("digits");
-  if (!container) return;
+  const width = canvas.clientWidth || 600;
+  const height = canvas.clientHeight || 220;
+  const ratio = window.devicePixelRatio || 1;
 
-  const total = state.digits.length;
+  if (canvas.width !== Math.round(width * ratio) ||
+      canvas.height !== Math.round(height * ratio)) {
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+  }
 
-  if (!total) {
-    container.innerHTML = Array.from({ length: 10 }, (_, digit) => `
-      <div class="digit">
-        ${digit}
-        <div class="bar"><i style="width:0%"></i></div>
-        <small class="muted">0%</small>
-      </div>
-    `).join("");
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  if (state.priceHistory.length < 2) {
+    context.fillStyle = "#9eb0ca";
+    context.font = "12px sans-serif";
+    context.fillText("Waiting for price movement...", 12, 24);
     return;
   }
 
-  container.innerHTML = state.digitCounts.map((count, digit) => {
-    const percent = count / total * 100;
-    const color = digit % 2 === 0 ? "#55e4ef" : "#4b9cff";
+  const values = state.priceHistory.map(item => item.price);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || 0.000001;
+  const padding = 14;
 
-    return `
-      <div class="digit">
-        ${digit}
-        <div class="bar">
-          <i style="width:${percent}%;background:${color}"></i>
-        </div>
-        <small class="muted">${percent.toFixed(1)}%</small>
-      </div>
-    `;
-  }).join("");
+  context.beginPath();
+  context.strokeStyle = "#263b59";
+
+  for (let line = 0; line < 4; line++) {
+    const y = padding + (height - padding * 2) * line / 3;
+    context.moveTo(padding, y);
+    context.lineTo(width - padding, y);
+  }
+
+  context.stroke();
+
+  context.beginPath();
+  context.strokeStyle =
+    values[values.length - 1] >= values[0] ? "#35d49a" : "#ff6b7a";
+  context.lineWidth = 2;
+
+  values.forEach((value, index) => {
+    const x = padding + index / (values.length - 1) * (width - padding * 2);
+    const y = padding + (max - value) / spread * (height - padding * 2);
+
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  });
+
+  context.stroke();
 }
 
-/* ---------------- MOMENTUM ANALYSIS ---------------- */
+/* ---------------- DIGIT ANALYSIS ---------------- */
 
-function renderAnalysis() {
-  const sample = state.prices;
-  const count = sample.length;
+function renderDigitAnalysis() {
+  const digits = state.digitHistory;
+  const size = digits.length;
 
-  setText("sampleSize", state.digits.length);
-  setText("lastDigit", state.lastDigit === null ? "—" : state.lastDigit);
+  setText(["sampleSize", "analysisSampleSize"], size);
 
-  if (count < MIN_ANALYSIS_TICKS) {
-    setText("trend", "COLLECTING DATA");
-    setClass("trend", "neutral");
+  if (!size) {
+    setText(["mostFrequentDigit"], "—");
+    setText(["evenOdd"], "--");
+    setText(["overUnder"], "--");
     setText(
-      "trendReason",
-      `Collecting price observations: ${count}/${MIN_ANALYSIS_TICKS}. No directional conclusion yet.`
+      ["digitAnalysis", "analysisStatus"],
+      "Waiting for ticks to begin analysis."
     );
-    setText("support", "—");
-    setText("resistance", "—");
     return;
   }
 
-  const prices = sample.map(item => item.price);
-  const recent = prices.slice(-20);
-  const earlier = prices.slice(-40, -20);
+  const counts = state.digitCounts;
+  const highest = Math.max(...counts);
 
-  const average = list =>
-    list.reduce((sum, value) => sum + value, 0) / list.length;
+  const mostFrequent = counts
+    .map((count, digit) => ({ digit, count }))
+    .filter(item => item.count === highest)
+    .map(item => item.digit);
 
-  const recentAverage = average(recent);
-  const earlierAverage = earlier.length ? average(earlier) : recentAverage;
-  const change = recentAverage - earlierAverage;
+  const even = digits.filter(digit => digit % 2 === 0).length;
+  const odd = size - even;
+  const overFive = digits.filter(digit => digit > 5).length;
+  const underFive = digits.filter(digit => digit < 5).length;
+  const equalFive = digits.filter(digit => digit === 5).length;
 
-  const scale = Math.max(Math.abs(recentAverage), 1);
-  const threshold = scale * 0.00001;
-
-  let trend = "SIDEWAYS";
-  let trendClass = "neutral";
-
-  if (change > threshold) {
-    trend = "UPWARD MOMENTUM";
-    trendClass = "up";
-  } else if (change < -threshold) {
-    trend = "DOWNWARD MOMENTUM";
-    trendClass = "down";
-  }
-
-  setText("trend", trend);
-  setClass("trend", trendClass);
+  const percent = count => `${(count / size * 100).toFixed(1)}%`;
 
   setText(
-    "trendReason",
-    `Recent 20-tick average compared with the preceding observations. Change: ${change.toFixed(state.pipSize)}. This is descriptive, not a prediction.`
+    ["mostFrequentDigit"],
+    `${mostFrequent.join(", ")} (${highest}, ${percent(highest)})`
   );
 
-  setText("support", Math.min(...recent).toFixed(state.pipSize));
-  setText("resistance", Math.max(...recent).toFixed(state.pipSize));
+  setText(
+    ["evenOdd"],
+    `Even ${even} (${percent(even)}) / Odd ${odd} (${percent(odd)})`
+  );
+
+  setText(
+    ["overUnder"],
+    `Over 5: ${overFive} (${percent(overFive)}) / Under 5: ${underFive} (${percent(underFive)}) / 5: ${equalFive}`
+  );
+
+  setText(
+    ["digitAnalysis", "analysisStatus"],
+    size < MIN_ANALYSIS_TICKS
+      ? `Collecting data: ${size}/${MIN_ANALYSIS_TICKS} ticks.`
+      : `Analysis based on ${size} observed ticks. Frequencies describe this sample; they do not predict the next digit.`
+  );
 }
 
 /* ---------------- SHARP BOT: SIGNAL ONLY ---------------- */
 
-function renderSharpBot() {
-  const count = state.digits.length;
+function renderSignal() {
+  setText(["signal", "currentSignal"], "WAIT");
 
-  /* Always WAIT: statistics alone do not establish an edge. */
-  setText("signal", "WAIT");
-  setClass("signal", "neutral");
+  const size = state.digitHistory.length;
 
-  let reason;
+  const reason = size < MIN_ANALYSIS_TICKS
+    ? `Collecting data: ${size}/${MIN_ANALYSIS_TICKS} ticks. No order will be placed.`
+    : `Sharp Bot is monitoring ${size} observed digits. WAIT remains active because sample frequencies alone do not validate an edge. No order will be placed.`;
 
-  if (!count) {
-    reason = "Waiting for live market data. No orders will be placed.";
-  } else if (count < MIN_ANALYSIS_TICKS) {
-    reason =
-      `Sharp Bot is collecting ${count}/${MIN_ANALYSIS_TICKS} observations. Signal-only mode; no orders.`;
-  } else {
-    reason =
-      `Monitoring ${count} observed digits on ${state.symbolName}. WAIT means no actionable signal has been validated. No orders will be placed.`;
-  }
+  setText(["signalReason"], reason);
 
-  setText("signalReason", reason);
-  setText("historyCount", count);
+  setBotStatus(
+    state.monitorRunning
+      ? "SHARP BOT · SIGNAL-ONLY · MONITORING"
+      : "SHARP BOT · SIGNAL-ONLY · STOPPED",
+    state.monitorRunning ? "#15803d" : "#64748b"
+  );
 
-  /* Keep trading permanently disabled in this build. */
   const buyButton = $("buyBtn", "confirmBuy", "confirmBuyButton");
 
   if (buyButton) {
     buyButton.disabled = true;
-    buyButton.textContent = "ORDERS DISABLED";
+    buyButton.textContent = "CONFIRM BUY — DISABLED";
+    buyButton.title = "Trading orders are disabled.";
   }
 
   if (ORDERS_ENABLED || REAL_MONEY_TRADING_ENABLED) {
-    console.error("Safety check failed: trading must remain disabled.");
+    console.error("Safety lock error: orders must remain disabled.");
   }
 }
 
-/* ---------------- RECENT DIGIT HISTORY ---------------- */
+function startSignalMonitor() {
+  state.monitorRunning = true;
+  renderSignal();
+  setAppStatus("Sharp Bot started in signal-only mode. No orders will be placed.", "#15803d");
+}
 
-function renderHistory() {
-  const container = $("history");
-  if (!container) return;
+function stopSignalMonitor() {
+  state.monitorRunning = false;
+  renderSignal();
+  setAppStatus("Sharp Bot monitoring stopped. No orders were placed.", "#64748b");
+}
 
-  if (!state.digits.length) {
-    container.innerHTML = '<span class="muted">Waiting for market ticks…</span>';
+/* ---------------- TESTING JOURNAL ---------------- */
+
+function recordObservation() {
+  const strategyElement = $("strategy", "strategySelect");
+  const notesElement = $("observationNotes", "notes");
+
+  const strategy = strategyElement
+    ? strategyElement.value
+    : "Digits Over / Under";
+
+  const notes = notesElement
+    ? notesElement.value.trim()
+    : "";
+
+  if (!notes) {
+    setText(
+      ["journalStatus", "observationStatus"],
+      "Enter observation notes before recording."
+    );
     return;
   }
 
-  container.innerHTML = state.digits.slice(-30).reverse().map(digit => {
-    const color = digit % 2 === 0 ? "#55e4ef" : "#4b9cff";
+  const observation = {
+    time: new Date().toLocaleString(),
+    market: state.symbolName,
+    strategy,
+    sampleSize: state.digitHistory.length,
+    lastDigit: state.lastDigit,
+    notes
+  };
 
-    return `
-      <span style="border:1px solid #263b59;color:${color}">
-        ${digit}
-      </span>
-    `;
-  }).join("");
+  state.observations.unshift(observation);
+  renderObservations();
+
+  if (notesElement) notesElement.value = "";
+
+  setText(
+    ["journalStatus", "observationStatus"],
+    "Observation recorded for this session. No order was placed."
+  );
 }
 
-/* ---------------- RENDER ALL ---------------- */
 
-function renderAll() {
-  renderPrice();
-  renderChart();
-  renderDigits();
-  renderAnalysis();
-  renderSharpBot();
-  renderHistory();
-}
+function renderObservations() {
+  const container = $("observationList", "journalEntries");
+  if (!container) return;
 
-/* ---------------- MARKET CHANGES ---------------- */
-
-function changeMarket() {
-  const select = $("market");
-  if (!select) return;
-
-  state.symbol = select.value;
-
-  const option = select.options[select.selectedIndex];
-  state.symbolName = option ? option.textContent : state.symbol;
-
-  subscribeToMarket();
-}
-
-/* ---------------- INITIALISATION ---------------- */
-
-function initialise() {
-  const select = $("market");
-  const reconnectButton = $("reconnect");
-
-  if (select) {
-    select.value = DEFAULT_SYMBOL;
-    select.addEventListener("change", changeMarket);
+  if (!state.observations.length) {
+    container.textContent = "No observations recorded this session.";
+    return;
   }
 
-  if (reconnectButton) {
-    reconnectButton.addEventListener("click", () => {
-      state.manuallyStopped = false;
-      state.reconnectAttempts = 0;
-      connectMarket();
-    });
-  }
+  container.innerHTML = state.observations.map(item => `
+    <article style="
+ padding:12px;
+      margin:10px 0;
+      border:1px solid #263449;
+      border-radius:10px;
+      background:#111827;
+    ">
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-bottom:8px;
+      ">
+        <strong style="color:#60a5fa;">
+          ${escapeHTML(item.strategy || "General Observation")}
+        </strong>
+        <small style="color:#9ca3af;">
+          ${escapeHTML(item.time || item.timestamp || "")}
+        </small>
+      </div>
 
-  renderAll();
-
-  if (ORDERS_ENABLED || REAL_MONEY_TRADING_ENABLED) {
-    console.error("Trading safety lock must remain enabled.");
-  }
-
-  connectMarket();
+      <p style="
+        margin:0;
+        color:#e5e7eb;
+        white-space:pre-wrap;
+        overflow-wrap:anywhere;
+      ">${escapeHTML(item.notes || item.observation || "")}</p>
+    </article>
+  `).join("");
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initialise, { once: true });
-} else {
-  initialise();
-    }
-    
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+                       }
+          
