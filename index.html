@@ -1,0 +1,798 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#061226">
+  <meta name="description" content="TradeDollars.pro — intelligent market analysis and manual trading tools.">
+  <title>TradeDollars.pro | Analyse. Trade. Grow.</title>
+
+  <style>
+    :root {
+      --bg: #061226;
+      --panel: #0c1c35;
+      --panel2: #102440;
+      --blue: #087cff;
+      --cyan: #16c9f5;
+      --text: #f4f8ff;
+      --muted: #94a9c5;
+      --border: #203b5c;
+      --green: #19d9a0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 225px;
+      flex-shrink: 0;
+      padding: 24px 16px;
+      background: #08172b;
+      border-right: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 43px;
+      height: 43px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(145deg, var(--blue), #0648a6);
+      color: white;
+      font-size: 21px;
+      font-weight: 900;
+      font-style: italic;
+      box-shadow: 0 0 22px #087cff35;
+    }
+
+    .brand-name {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -.6px;
+    }
+
+    .brand-name span {
+      color: var(--cyan);
+    }
+
+    .tagline {
+      margin-top: 5px;
+      font-size: 9px;
+      letter-spacing: 1.7px;
+      color: var(--muted);
+    }
+
+    .nav-label {
+      margin: 22px 10px 10px;
+      color: #7188a6;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 12px;
+      margin-bottom: 5px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: #afc1d9;
+      background: transparent;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      color: white;
+      background: #0d2b50;
+      border-color: #174879;
+    }
+
+    .nav-item.active {
+      box-shadow: inset 3px 0 var(--cyan);
+    }
+
+    .nav-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 17px;
+    }
+
+    .sidebar-note {
+      margin-top: 35px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .sidebar-note strong {
+      color: var(--green);
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .topbar {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 16px 26px;
+      border-bottom: 1px solid var(--border);
+      background: #08172bcf;
+    }
+
+    .topbar h1 {
+      font-size: 21px;
+    }
+
+    .topbar p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .demo-pill {
+      border: 1px solid #176d62;
+      background: #10382f;
+      color: #7af2ce;
+      padding: 9px 12px;
+      border-radius: 30px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .content {
+      max-width: 1500px;
+      padding: 25px;
+      margin: auto;
+    }
+
+    .welcome {
+      padding: 27px;
+      border: 1px solid #174778;
+      border-radius: 18px;
+      background:
+        radial-gradient(ellipse at 85% 0%, #087cff30, transparent 50%),
+        linear-gradient(120deg, #0c2140, #09172c);
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: 2px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .welcome h2 {
+      max-width: 600px;
+      font-size: clamp(25px, 4vw, 38px);
+      line-height: 1.18;
+      margin-bottom: 12px;
+    }
+
+    .welcome h2 span {
+      color: var(--cyan);
+    }
+
+    .welcome p {
+      max-width: 600px;
+      color: #b1c4df;
+      line-height: 1.7;
+      font-size: 13px;
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .btn {
+      padding: 12px 17px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: linear-gradient(120deg, #087cff, #075bd1);
+      border-color: #258bff;
+    }
+
+    .btn:hover {
+      filter: brightness(1.15);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 26px 0 14px;
+    }
+
+    .section-heading h2 {
+      font-size: 17px;
+    }
+
+    .section-heading p {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: var(--panel);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 13px;
+    }
+
+    .metric-value {
+      font-size: 23px;
+      font-weight: 800;
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 9px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px;
+    }
+
+    .feature-card {
+      padding: 21px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: linear-gradient(145deg, #102541, #09182d);
+    }
+
+    .feature-icon {
+      width: 45px;
+      height: 45px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 17px;
+      border-radius: 12px;
+      background: #087cff20;
+      border: 1px solid #087cff70;
+      font-size: 23px;
+    }
+
+    .feature-card h3 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .feature-card .btn {
+      margin-top: 18px;
+    }
+
+    .analysis-panel {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 15px;
+    }
+
+    .analysis-panel h3 {
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .status-row:last-child {
+      border-bottom: none;
+    }
+
+    .status-row span:first-child {
+      color: var(--muted);
+    }
+
+    .pending {
+      color: #ffcf70;
+    }
+
+    .chart-placeholder {
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 20px;
+      border: 1px dashed #315276;
+      border-radius: 10px;
+      background:
+        linear-gradient(#17304a55 1px, transparent 1px),
+        linear-gradient(90deg, #17304a55 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .footer {
+      padding: 25px 0 10px;
+      color: #7188a6;
+      font-size: 10px;
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    .notice {
+      display: none;
+      margin-top: 15px;
+      padding: 12px;
+      border: 1px solid #276f65;
+      border-radius: 9px;
+      background: #10332e;
+      color: #a5f5dc;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1050px) {
+      .sidebar {
+        width: 190px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .app {
+        display: block;
+      }
+
+      .sidebar {
+        width: 100%;
+        padding: 14px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .brand {
+        margin-bottom: 15px;
+      }
+
+      .nav-label,
+      .sidebar-note {
+        display: none;
+      }
+
+      .nav-list {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 3px;
+      }
+
+      .nav-item {
+        width: auto;
+        flex-shrink: 0;
+        padding: 10px;
+        margin: 0;
+        font-size: 11px;
+      }
+
+      .nav-icon {
+        display: none;
+      }
+
+      .topbar {
+        padding: 15px;
+      }
+
+      .topbar h1 {
+        font-size: 18px;
+      }
+
+      .content {
+        padding: 15px;
+      }
+
+      .welcome {
+        padding: 21px;
+      }
+
+      .grid {
+        gap: 9px;
+      }
+
+      .card {
+        padding: 13px;
+      }
+
+      .metric-value {
+        font-size: 19px;
+      }
+
+      .feature-grid,
+      .analysis-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .section-heading p {
+        text-align: right;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">TD</div>
+        <div>
+          <div class="brand-name">TradeDollars<span>.pro</span></div>
+          <div class="tagline">ANALYSE · TRADE · GROW</div>
+        </div>
+      </div>
+
+      <div class="nav-label">Workspace</div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-target="dashboard">
+          <span class="nav-icon">⌂</span>Dashboard
+        </button>
+        <button class="nav-item" data-target="bot">
+          <span class="nav-icon">✳</span>AI Analysis
+        </button>
+        <button class="nav-item" data-target="manual">
+          <span class="nav-icon">↗</span>Manual Trading
+        </button>
+        <button class="nav-item" data-target="markets">
+          <span class="nav-icon">▥</span>Markets
+        </button>
+        <button class="nav-item" data-target="account">
+          <span class="nav-icon">◎</span>Account
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>● Development mode</strong><br>
+        Real-money trading is disabled. No orders are sent from this foundation.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Trading Dashboard</h1>
+          <p>Welcome to your new trading workspace.</p>
+        </div>
+        <div class="demo-pill">● DEMO FIRST</div>
+      </header>
+
+      <div class="content" id="dashboard">
+
+        <section class="welcome">
+          <div class="eyebrow">YOUR NEW TRADING PLATFORM</div>
+          <h2>Analyse smarter.<br><span>Trade with a plan.</span></h2>
+          <p>
+            Welcome to TradeDollars.pro. Your future workspace for
+            intelligent market analysis, manual trading and Deriv
+            account integration.
+          </p>
+          <div class="welcome-actions">
+            <button class="btn btn-primary" data-go="bot">
+              Explore AI Analysis →
+            </button>
+            <button class="btn" data-go="manual">
+              Manual Trading
+            </button>
+          </div>
+        </section>
+
+        <div class="section-heading">
+          <h2>Workspace Overview</h2>
+          <p>Preview · Not live account data</p>
+        </div>
+
+        <section class="grid">
+          <div class="card">
+            <div class="metric-label">Account Balance</div>
+            <div class="metric-value">—</div>
+            <div class="metric-note">Connect a demo account later</div>
+          </div>
+          <div class="card">
+            <div class="metric-label">Market Status</div>
+            <div class="metric-value">—</div>
+            <div class="metric-note">Live data not connected</div>
+          </div>
+          <div class="card">
+            <div class="metric-label">Bot Status</div>
+            <div class="metric-value">Offline</div>
+            <div class="metric-note">Analysis engine to be built</div>
+          </div>
+          <div class="card">
+            <div class="metric-label">Open Contracts</div>
+            <div class="metric-value">—</div>
+            <div class="metric-note">No account connected</div>
+          </div>
+        </section>
+
+        <div class="section-heading">
+          <h2>Trading Tools</h2>
+          <p>Designed for desktop and mobile</p>
+        </div>
+
+        <section class="feature-grid">
+          <article class="feature-card" id="bot">
+            <div class="feature-icon">✳</div>
+            <h3>AI Market Analysis</h3>
+            <p>
+              Analyse price movements, market trends, digit frequencies
+              and historical outcomes. Review signal reasoning,
+              confidence and risk limits before making decisions.
+            </p>
+            <button class="btn btn-primary" data-go="analysis">
+              Open Analysis Preview
+            </button>
+          </article>
+
+          <article class="feature-card" id="manual">
+            <div class="feature-icon">↗</div>
+            <h3>Manual Trading</h3>
+            <p>
+              A future trading panel for supported Deriv markets,
+              contract selection, stake, duration, quotes,
+              confirmation and open-contract monitoring.
+            </p>
+            <button class="btn" data-go="manualPreview">
+              View Trading Preview
+            </button>
+          </article>
+
+          <article class="feature-card" id="markets">
+            <div class="feature-icon">▥</div>
+            <h3>Markets & Charts</h3>
+            <p>
+              A planned market browser with live prices, charts,
+              selectable symbols and historical data, subject
+              to available Deriv API permissions.
+            </p>
+            <button class="btn" data-go="chartPreview">
+              View Chart Preview
+            </button>
+          </article>
+
+          <article class="feature-card" id="account">
+            <div class="feature-icon">◈</div>
+            <h3>Deriv Account</h3>
+            <p>
+              Secure account authorisation, demo balance,
+              account information and supported trading functions.
+              Deposits and withdrawals remain on official Deriv services.
+            </p>
+            <button class="btn" data-go="accountPreview">
+              Account Setup Preview
+            </button>
+          </article>
+        </section>
+
+        <div class="section-heading" id="analysis">
+          <h2>Analysis Workspace</h2>
+          <p>Waiting for market connection</p>
+        </div>
+
+        <section class="analysis-panel">
+          <div class="card">
+            <h3>Market Analysis</h3>
+            <div class="status-row">
+              <span>Selected market</span>
+              <span>Not connected</span>
+            </div>
+            <div class="status-row">
+              <span>Trend</span>
+              <span class="pending">Pending data</span>
+            </div>
+            <div class="status-row">
+              <span>Signal</span>
+              <span class="pending">No signal</span>
+            </div>
+            <div class="status-row">
+              <span>Trading mode</span>
+              <span>Demo first</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Live Chart</h3>
+            <div class="chart-placeholder">
+              <div>
+                <div style="font-size:30px;margin-bottom:10px">⌁</div>
+                Chart will appear here<br>
+                when market data is connected.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div id="notice" class="notice" role="status"></div>
+
+        <footer class="footer">
+          <div>TradeDollars.pro · Independent trading interface concept</div>
+          <div>
+            Not an official Deriv website. Trading involves risk.
+            Analysis does not guarantee future results.
+          </div>
+          <div>Real-money trading disabled during development.</div>
+        </footer>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const pageTitle = document.getElementById("pageTitle");
+    const notice = document.getElementById("notice");
+
+    const titles = {
+      dashboard: "Trading Dashboard",
+      bot: "AI Market Analysis",
+      manual: "Manual Trading",
+      markets: "Markets & Charts",
+      account: "Account Connection",
+      analysis: "Analysis Workspace"
+    };
+
+    function showNotice(message) {
+      notice.textContent = message;
+      notice.style.display = "block";
+      notice.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
+
+    function navigate(target) {
+      const section = document.getElementById(target);
+
+      if (!section) {
+        showNotice(
+          "This section is planned for the next development step. " +
+          "No live trading action has been performed."
+        );
+        return;
+      }
+
+      if (titles[target]) {
+        pageTitle.textContent = titles[target];
+      }
+
+      document.querySelectorAll(".nav-item").forEach(function(item) {
+        item.classList.toggle(
+          "active",
+          item.dataset.target === target
+        );
+      });
+
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+    document.querySelectorAll("[data-target]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        navigate(button.dataset.target);
+      });
+    });
+
+    document.querySelectorAll("[data-go]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        const target = button.dataset.go;
+
+        if (target === "manualPreview") {
+          showNotice(
+            "Manual trading controls will be built in a later step. " +
+            "This button does not place an order."
+          );
+          return;
+        }
+
+        if (target === "chartPreview") {
+          navigate("markets");
+          showNotice(
+            "Live chart integration is not connected yet."
+          );
+          return;
+        }
+
+        if (target === "accountPreview") {
+          navigate("account");
+          showNotice(
+            "Secure Deriv login will be configured in a later step."
+          );
+          return;
+        }
+
+        navigate(target);
+      });
+    });
+  </script>
+</body>
+</html>
