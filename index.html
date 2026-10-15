@@ -1,798 +1,387 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#061226">
-  <meta name="description" content="TradeDollars.pro — intelligent market analysis and manual trading tools.">
-  <title>TradeDollars.pro | Analyse. Trade. Grow.</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TradeDollars.pro | Smart Trading Dashboard</title>
+  <meta name="theme-color" content="#081426">
   <style>
     :root {
-      --bg: #061226;
-      --panel: #0c1c35;
-      --panel2: #102440;
-      --blue: #087cff;
-      --cyan: #16c9f5;
-      --text: #f4f8ff;
-      --muted: #94a9c5;
-      --border: #203b5c;
-      --green: #19d9a0;
+      --bg:#081426; --panel:#101f35; --panel2:#142641;
+      --line:#263b59; --blue:#4b9cff; --cyan:#55e4ef;
+      --text:#f2f7ff; --muted:#9eb0ca; --green:#35d49a;
+      --red:#ff6b7a; --gold:#ffc76b;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing:border-box; }
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      margin:0; background:var(--bg); color:var(--text);
+      font:15px system-ui,-apple-system,Segoe UI,sans-serif;
     }
-
-    button, select, input {
-      font: inherit;
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    .wrap { max-width:1150px; margin:auto; padding:18px; }
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; flex-wrap:wrap; padding:8px 0 22px;
     }
-
-    button {
-      cursor: pointer;
-    }
-
-    .app {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      width: 225px;
-      flex-shrink: 0;
-      padding: 24px 16px;
-      background: #08172b;
-      border-right: 1px solid var(--border);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 32px;
-    }
-
+    .brand { display:flex; align-items:center; gap:12px; }
     .logo {
-      width: 43px;
-      height: 43px;
-      display: grid;
-      place-items: center;
-      border-radius: 12px;
-      background: linear-gradient(145deg, var(--blue), #0648a6);
-      color: white;
-      font-size: 21px;
-      font-weight: 900;
-      font-style: italic;
-      box-shadow: 0 0 22px #087cff35;
+      width:48px;height:48px;border-radius:14px;
+      display:grid;place-items:center;font-size:21px;font-weight:900;
+      color:#fff;background:linear-gradient(135deg,#2274ff,#42d8e7);
+      box-shadow:0 6px 24px #267aff30;
     }
-
-    .brand-name {
-      font-size: 17px;
-      font-weight: 800;
-      letter-spacing: -.6px;
+    h1 { font-size:21px; margin:0; }
+    .tagline { color:var(--muted);font-size:12px;margin-top:3px; }
+    .pill {
+      display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);
+      background:var(--panel);border-radius:30px;padding:9px 12px;
+      color:var(--muted);font-size:12px;
     }
-
-    .brand-name span {
-      color: var(--cyan);
-    }
-
-    .tagline {
-      margin-top: 5px;
-      font-size: 9px;
-      letter-spacing: 1.7px;
-      color: var(--muted);
-    }
-
-    .nav-label {
-      margin: 22px 10px 10px;
-      color: #7188a6;
-      font-size: 10px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-
-    .nav-item {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 13px 12px;
-      margin-bottom: 5px;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      color: #afc1d9;
-      background: transparent;
-      text-align: left;
-      font-size: 13px;
-    }
-
-    .nav-item:hover,
-    .nav-item.active {
-      color: white;
-      background: #0d2b50;
-      border-color: #174879;
-    }
-
-    .nav-item.active {
-      box-shadow: inset 3px 0 var(--cyan);
-    }
-
-    .nav-icon {
-      width: 20px;
-      text-align: center;
-      font-size: 17px;
-    }
-
-    .sidebar-note {
-      margin-top: 35px;
-      padding: 14px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.7;
-    }
-
-    .sidebar-note strong {
-      color: var(--green);
-    }
-
-    .main {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .topbar {
-      min-height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 15px;
-      padding: 16px 26px;
-      border-bottom: 1px solid var(--border);
-      background: #08172bcf;
-    }
-
-    .topbar h1 {
-      font-size: 21px;
-    }
-
-    .topbar p {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .demo-pill {
-      border: 1px solid #176d62;
-      background: #10382f;
-      color: #7af2ce;
-      padding: 9px 12px;
-      border-radius: 30px;
-      font-size: 11px;
-      white-space: nowrap;
-    }
-
-    .content {
-      max-width: 1500px;
-      padding: 25px;
-      margin: auto;
-    }
-
-    .welcome {
-      padding: 27px;
-      border: 1px solid #174778;
-      border-radius: 18px;
-      background:
-        radial-gradient(ellipse at 85% 0%, #087cff30, transparent 50%),
-        linear-gradient(120deg, #0c2140, #09172c);
-      margin-bottom: 22px;
-    }
-
-    .eyebrow {
-      color: var(--cyan);
-      font-size: 11px;
-      letter-spacing: 2px;
-      font-weight: 700;
-      margin-bottom: 12px;
-    }
-
-    .welcome h2 {
-      max-width: 600px;
-      font-size: clamp(25px, 4vw, 38px);
-      line-height: 1.18;
-      margin-bottom: 12px;
-    }
-
-    .welcome h2 span {
-      color: var(--cyan);
-    }
-
-    .welcome p {
-      max-width: 600px;
-      color: #b1c4df;
-      line-height: 1.7;
-      font-size: 13px;
-    }
-
-    .welcome-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 22px;
-    }
-
-    .btn {
-      padding: 12px 17px;
-      border-radius: 9px;
-      border: 1px solid var(--border);
-      background: var(--panel2);
-      color: white;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .btn-primary {
-      background: linear-gradient(120deg, #087cff, #075bd1);
-      border-color: #258bff;
-    }
-
-    .btn:hover {
-      filter: brightness(1.15);
-    }
-
-    .section-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin: 26px 0 14px;
-    }
-
-    .section-heading h2 {
-      font-size: 17px;
-    }
-
-    .section-heading p {
-      color: var(--muted);
-      font-size: 11px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-    }
-
+    .dot { width:8px;height:8px;border-radius:50%;background:var(--gold); }
+    .grid { display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px; }
     .card {
-      min-width: 0;
-      padding: 18px;
-      border: 1px solid var(--border);
-      border-radius: 13px;
-      background: var(--panel);
+      background:linear-gradient(150deg,var(--panel),#0c192b);
+      border:1px solid var(--line);border-radius:17px;padding:17px;
+      min-width:0;
     }
-
-    .metric-label {
-      color: var(--muted);
-      font-size: 11px;
-      margin-bottom: 13px;
+    .span12 { grid-column:span 12; }
+    .span8 { grid-column:span 8; }
+    .span6 { grid-column:span 6; }
+    .span4 { grid-column:span 4; }
+    .eyebrow { color:var(--muted);font-size:12px;margin-bottom:9px; }
+    .big { font-size:28px;font-weight:750;letter-spacing:-.7px; }
+    .muted { color:var(--muted); }
+    .small { font-size:12px;line-height:1.55; }
+    h2 { font-size:16px;margin:0 0 14px; }
+    .row { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+    select,button {
+      color:var(--text);background:var(--panel2);border:1px solid var(--line);
+      border-radius:10px;padding:11px 12px;
     }
-
-    .metric-value {
-      font-size: 23px;
-      font-weight: 800;
+    select { width:100%;margin-top:7px; }
+    .btn { background:var(--blue);border-color:var(--blue);font-weight:700; }
+    .btn-secondary { background:#172944; }
+    .btn:disabled { opacity:.5;cursor:not-allowed; }
+    .market-price { font-size:34px;font-weight:800;margin:7px 0; }
+    .up { color:var(--green); }
+    .down { color:var(--red); }
+    .neutral { color:var(--gold); }
+    .digits { display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px;margin-top:12px; }
+    .digit {
+      text-align:center;padding:10px 0 7px;background:#0b1829;
+      border:1px solid var(--line);border-radius:9px;font-weight:700;
     }
-
-    .metric-note {
-      color: var(--muted);
-      font-size: 10px;
-      margin-top: 9px;
+    .bar { height:4px;background:#233650;border-radius:5px;margin-top:7px;overflow:hidden; }
+    .bar > i { display:block;height:100%;background:var(--cyan);width:0; }
+    .stats { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+    .stat { background:#0b192b;border:1px solid var(--line);padding:12px;border-radius:12px; }
+    .stat strong { display:block;font-size:19px;margin-top:5px; }
+    .signal {
+      padding:15px;border-radius:12px;background:#0b192b;
+      border:1px solid var(--line);margin-bottom:12px;
     }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 15px;
-    }
-
-    .feature-card {
-      padding: 21px;
-      border: 1px solid var(--border);
-      border-radius: 15px;
-      background: linear-gradient(145deg, #102541, #09182d);
-    }
-
-    .feature-icon {
-      width: 45px;
-      height: 45px;
-      display: grid;
-      place-items: center;
-      margin-bottom: 17px;
-      border-radius: 12px;
-      background: #087cff20;
-      border: 1px solid #087cff70;
-      font-size: 23px;
-    }
-
-    .feature-card h3 {
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-
-    .feature-card p {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.8;
-    }
-
-    .feature-card .btn {
-      margin-top: 18px;
-    }
-
-    .analysis-panel {
-      display: grid;
-      grid-template-columns: 1.3fr 1fr;
-      gap: 15px;
-    }
-
-    .analysis-panel h3 {
-      font-size: 14px;
-      margin-bottom: 15px;
-    }
-
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-    }
-
-    .status-row:last-child {
-      border-bottom: none;
-    }
-
-    .status-row span:first-child {
-      color: var(--muted);
-    }
-
-    .pending {
-      color: #ffcf70;
-    }
-
-    .chart-placeholder {
-      min-height: 180px;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      padding: 20px;
-      border: 1px dashed #315276;
-      border-radius: 10px;
-      background:
-        linear-gradient(#17304a55 1px, transparent 1px),
-        linear-gradient(90deg, #17304a55 1px, transparent 1px);
-      background-size: 28px 28px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.8;
-    }
-
-    .footer {
-      padding: 25px 0 10px;
-      color: #7188a6;
-      font-size: 10px;
-      line-height: 1.8;
-      text-align: center;
-    }
-
-    .notice {
-      display: none;
-      margin-top: 15px;
-      padding: 12px;
-      border: 1px solid #276f65;
-      border-radius: 9px;
-      background: #10332e;
-      color: #a5f5dc;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    @media (max-width: 1050px) {
-      .sidebar {
-        width: 190px;
-      }
-
-      .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 700px) {
-      .app {
-        display: block;
-      }
-
-      .sidebar {
-        width: 100%;
-        padding: 14px;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .brand {
-        margin-bottom: 15px;
-      }
-
-      .nav-label,
-      .sidebar-note {
-        display: none;
-      }
-
-      .nav-list {
-        display: flex;
-        gap: 6px;
-        overflow-x: auto;
-        padding-bottom: 3px;
-      }
-
-      .nav-item {
-        width: auto;
-        flex-shrink: 0;
-        padding: 10px;
-        margin: 0;
-        font-size: 11px;
-      }
-
-      .nav-icon {
-        display: none;
-      }
-
-      .topbar {
-        padding: 15px;
-      }
-
-      .topbar h1 {
-        font-size: 18px;
-      }
-
-      .content {
-        padding: 15px;
-      }
-
-      .welcome {
-        padding: 21px;
-      }
-
-      .grid {
-        gap: 9px;
-      }
-
-      .card {
-        padding: 13px;
-      }
-
-      .metric-value {
-        font-size: 19px;
-      }
-
-      .feature-grid,
-      .analysis-panel {
-        grid-template-columns: 1fr;
-      }
-
-      .section-heading p {
-        text-align: right;
-      }
+    .signal strong { font-size:20px; }
+    .history { display:flex;gap:6px;flex-wrap:wrap;margin-top:10px; }
+    .history span { background:#203550;border-radius:8px;padding:8px 10px;font-weight:700; }
+    .notice { border-left:3px solid var(--blue);padding:10px 12px;background:#11243c;border-radius:5px; }
+    footer { text-align:center;color:var(--muted);font-size:12px;padding:22px 0; }
+    @media(max-width:700px) {
+      .span8,.span6,.span4 { grid-column:span 12; }
+      .digits { gap:3px; }
+      .digit { font-size:12px;padding:8px 0 6px; }
+      .big { font-size:24px; }
+      .market-price { font-size:30px; }
     }
   </style>
 </head>
-
 <body>
-  <div class="app">
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">TD</div>
+      <div>
+        <h1>TradeDollars.pro</h1>
+        <div class="tagline">Analyse · Trade · Grow</div>
+      </div>
+    </div>
+    <div class="pill"><span class="dot" id="statusDot"></span><span id="connectionStatus">Connecting to market data…</span></div>
+  </header>
 
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">TD</div>
+  <main class="grid">
+    <section class="card span12">
+      <div class="row" style="flex-wrap:wrap">
         <div>
-          <div class="brand-name">TradeDollars<span>.pro</span></div>
-          <div class="tagline">ANALYSE · TRADE · GROW</div>
+          <div class="eyebrow">TRADING MODE</div>
+          <div class="big" style="font-size:20px">Demo-first development</div>
+          <div class="small muted">Real-money trading disabled · Signal-only bot</div>
         </div>
+        <div class="pill"><span class="dot" style="background:var(--green)"></span>Orders disabled</div>
       </div>
+    </section>
 
-      <div class="nav-label">Workspace</div>
-      <nav class="nav-list">
-        <button class="nav-item active" data-target="dashboard">
-          <span class="nav-icon">⌂</span>Dashboard
-        </button>
-        <button class="nav-item" data-target="bot">
-          <span class="nav-icon">✳</span>AI Analysis
-        </button>
-        <button class="nav-item" data-target="manual">
-          <span class="nav-icon">↗</span>Manual Trading
-        </button>
-        <button class="nav-item" data-target="markets">
-          <span class="nav-icon">▥</span>Markets
-        </button>
-        <button class="nav-item" data-target="account">
-          <span class="nav-icon">◎</span>Account
-        </button>
-      </nav>
-
-      <div class="sidebar-note">
-        <strong>● Development mode</strong><br>
-        Real-money trading is disabled. No orders are sent from this foundation.
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
+    <section class="card span8">
+      <div class="row" style="flex-wrap:wrap">
         <div>
-          <h1 id="pageTitle">Trading Dashboard</h1>
-          <p>Welcome to your new trading workspace.</p>
+          <div class="eyebrow">LIVE MARKET PRICE</div>
+          <div id="price" class="market-price">Waiting for ticks…</div>
+          <div id="priceChange" class="small muted">Price change: —</div>
         </div>
-        <div class="demo-pill">● DEMO FIRST</div>
-      </header>
-
-      <div class="content" id="dashboard">
-
-        <section class="welcome">
-          <div class="eyebrow">YOUR NEW TRADING PLATFORM</div>
-          <h2>Analyse smarter.<br><span>Trade with a plan.</span></h2>
-          <p>
-            Welcome to TradeDollars.pro. Your future workspace for
-            intelligent market analysis, manual trading and Deriv
-            account integration.
-          </p>
-          <div class="welcome-actions">
-            <button class="btn btn-primary" data-go="bot">
-              Explore AI Analysis →
-            </button>
-            <button class="btn" data-go="manual">
-              Manual Trading
-            </button>
-          </div>
-        </section>
-
-        <div class="section-heading">
-          <h2>Workspace Overview</h2>
-          <p>Preview · Not live account data</p>
+        <div style="min-width:190px;flex:1;max-width:270px">
+          <label class="small muted" for="market">Choose Deriv market</label>
+          <select id="market">
+            <option value="1HZ100V">Volatility 100 (1s) Index</option>
+            <option value="R_100">Volatility 100 Index</option>
+            <option value="1HZ50V">Volatility 50 (1s) Index</option>
+            <option value="R_50">Volatility 50 Index</option>
+            <option value="1HZ25V">Volatility 25 (1s) Index</option>
+            <option value="R_25">Volatility 25 Index</option>
+            <option value="R_75">Volatility 75 Index</option>
+            <option value="R_10">Volatility 10 Index</option>
+          </select>
         </div>
-
-        <section class="grid">
-          <div class="card">
-            <div class="metric-label">Account Balance</div>
-            <div class="metric-value">—</div>
-            <div class="metric-note">Connect a demo account later</div>
-          </div>
-          <div class="card">
-            <div class="metric-label">Market Status</div>
-            <div class="metric-value">—</div>
-            <div class="metric-note">Live data not connected</div>
-          </div>
-          <div class="card">
-            <div class="metric-label">Bot Status</div>
-            <div class="metric-value">Offline</div>
-            <div class="metric-note">Analysis engine to be built</div>
-          </div>
-          <div class="card">
-            <div class="metric-label">Open Contracts</div>
-            <div class="metric-value">—</div>
-            <div class="metric-note">No account connected</div>
-          </div>
-        </section>
-
-        <div class="section-heading">
-          <h2>Trading Tools</h2>
-          <p>Designed for desktop and mobile</p>
-        </div>
-
-        <section class="feature-grid">
-          <article class="feature-card" id="bot">
-            <div class="feature-icon">✳</div>
-            <h3>AI Market Analysis</h3>
-            <p>
-              Analyse price movements, market trends, digit frequencies
-              and historical outcomes. Review signal reasoning,
-              confidence and risk limits before making decisions.
-            </p>
-            <button class="btn btn-primary" data-go="analysis">
-              Open Analysis Preview
-            </button>
-          </article>
-
-          <article class="feature-card" id="manual">
-            <div class="feature-icon">↗</div>
-            <h3>Manual Trading</h3>
-            <p>
-              A future trading panel for supported Deriv markets,
-              contract selection, stake, duration, quotes,
-              confirmation and open-contract monitoring.
-            </p>
-            <button class="btn" data-go="manualPreview">
-              View Trading Preview
-            </button>
-          </article>
-
-          <article class="feature-card" id="markets">
-            <div class="feature-icon">▥</div>
-            <h3>Markets & Charts</h3>
-            <p>
-              A planned market browser with live prices, charts,
-              selectable symbols and historical data, subject
-              to available Deriv API permissions.
-            </p>
-            <button class="btn" data-go="chartPreview">
-              View Chart Preview
-            </button>
-          </article>
-
-          <article class="feature-card" id="account">
-            <div class="feature-icon">◈</div>
-            <h3>Deriv Account</h3>
-            <p>
-              Secure account authorisation, demo balance,
-              account information and supported trading functions.
-              Deposits and withdrawals remain on official Deriv services.
-            </p>
-            <button class="btn" data-go="accountPreview">
-              Account Setup Preview
-            </button>
-          </article>
-        </section>
-
-        <div class="section-heading" id="analysis">
-          <h2>Analysis Workspace</h2>
-          <p>Waiting for market connection</p>
-        </div>
-
-        <section class="analysis-panel">
-          <div class="card">
-            <h3>Market Analysis</h3>
-            <div class="status-row">
-              <span>Selected market</span>
-              <span>Not connected</span>
-            </div>
-            <div class="status-row">
-              <span>Trend</span>
-              <span class="pending">Pending data</span>
-            </div>
-            <div class="status-row">
-              <span>Signal</span>
-              <span class="pending">No signal</span>
-            </div>
-            <div class="status-row">
-              <span>Trading mode</span>
-              <span>Demo first</span>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3>Live Chart</h3>
-            <div class="chart-placeholder">
-              <div>
-                <div style="font-size:30px;margin-bottom:10px">⌁</div>
-                Chart will appear here<br>
-                when market data is connected.
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div id="notice" class="notice" role="status"></div>
-
-        <footer class="footer">
-          <div>TradeDollars.pro · Independent trading interface concept</div>
-          <div>
-            Not an official Deriv website. Trading involves risk.
-            Analysis does not guarantee future results.
-          </div>
-          <div>Real-money trading disabled during development.</div>
-        </footer>
-
       </div>
-    </main>
-  </div>
+      <div style="margin-top:22px">
+        <div class="row">
+          <h2>Recent price movement</h2>
+          <span class="small muted" id="tickCount">0 ticks</span>
+        </div>
+        <svg id="chart" viewBox="0 0 700 190" preserveAspectRatio="none"
+             style="width:100%;height:190px;display:block;background:#091627;border-radius:12px">
+          <text x="350" y="95" fill="#9eb0ca" text-anchor="middle">Waiting for live market data…</text>
+        </svg>
+      </div>
+    </section>
 
-  <script>
-    "use strict";
+    <section class="card span4">
+      <h2>AI Market Analysis</h2>
+      <div class="signal">
+        <div class="eyebrow">DIRECTIONAL MOMENTUM</div>
+        <strong id="trend" class="neutral">COLLECTING DATA</strong>
+        <p id="trendReason" class="small muted">Waiting for enough independent price ticks to analyse.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="small muted">Last digit</span><strong id="lastDigit">—</strong></div>
+        <div class="stat"><span class="small muted">Sample size</span><strong id="sampleSize">0</strong></div>
+        <div class="stat"><span class="small muted">Support estimate</span><strong id="support">—</strong></div>
+        <div class="stat"><span class="small muted">Resistance estimate</span><strong id="resistance">—</strong></div>
+      </div>
+    </section>
 
-    const pageTitle = document.getElementById("pageTitle");
-    const notice = document.getElementById("notice");
+    <section class="card span6">
+      <div class="row">
+        <h2>Last-digit statistics</h2>
+        <span class="small muted">Observed sample only</span>
+      </div>
+      <div id="digits" class="digits"></div>
+      <p class="small muted">Percentages describe the observed sample. They do not predict the next digit or guarantee an outcome.</p>
+    </section>
 
-    const titles = {
-      dashboard: "Trading Dashboard",
-      bot: "AI Market Analysis",
-      manual: "Manual Trading",
-      markets: "Markets & Charts",
-      account: "Account Connection",
-      analysis: "Analysis Workspace"
-    };
+    <section class="card span6">
+      <h2>Signal-only bot</h2>
+      <div class="signal">
+        <div class="eyebrow">CURRENT OBSERVATION</div>
+        <strong id="signal" class="neutral">WAIT</strong>
+        <p id="signalReason" class="small muted">The bot is monitoring prices. No orders will be placed.</p>
+      </div>
+      <div class="row small"><span class="muted">Tick history retained</span><strong id="historyCount">0</strong></div>
+      <div class="row small" style="margin-top:9px"><span class="muted">Automatic trading</span><strong class="neutral">OFF</strong></div>
+      <div class="row small" style="margin-top:9px"><span class="muted">Real-money orders</span><strong class="down">DISABLED</strong></div>
+      <button id="reconnect" class="btn-secondary" style="width:100%;margin-top:16px">Reconnect market feed</button>
+    </section>
 
-    function showNotice(message) {
-      notice.textContent = message;
-      notice.style.display = "block";
-      notice.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest"
-      });
+    <section class="card span12">
+      <h2>Recent last digits</h2>
+      <div id="history" class="history"><span class="muted">Waiting for market ticks…</span></div>
+      <p class="small muted">This dashboard uses public market data only. It does not log in to your account, access balances, or place trades.</p>
+    </section>
+  </main>
+  <footer>TradeDollars.pro · Independent trading analysis interface · Demo-first · Trading orders disabled</footer>
+</div>
+
+<script>
+"use strict";
+
+const WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=1089";
+const $ = id => document.getElementById(id);
+const state = {
+  socket:null, symbol:"1HZ100V", prices:[], digits:[],
+  counts:Array(10).fill(0), ticks:0, reconnectTimer:null, intentionalClose:false
+};
+
+function setStatus(text, connected=false) {
+  $("connectionStatus").textContent=text;
+  $("statusDot").style.background=connected?"var(--green)":"var(--gold)";
+}
+
+function formatPrice(value) {
+  if (!Number.isFinite(value)) return "—";
+  return value.toFixed(3);
+}
+
+function extractDigit(quote, pipSize) {
+  const decimals = Math.max(0, Math.min(10, Number(pipSize)||0));
+  const fixed = Number(quote).toFixed(decimals);
+  const digitsOnly = fixed.replace(/\D/g,"");
+  return Number(digitsOnly.slice(-1));
+}
+
+function connect() {
+  state.intentionalClose=false;
+  if (state.socket) {
+    try { state.socket.close(); } catch (_) {}
+  }
+  clearTimeout(state.reconnectTimer);
+  setStatus("Connecting…");
+  const socket = new WebSocket(WS_URL);
+  state.socket=socket;
+
+  socket.onopen=() => {
+    if (state.socket!==socket) return;
+    setStatus("Live market connected",true);
+    socket.send(JSON.stringify({ticks:state.symbol,subscribe:1}));
+  };
+
+  socket.onmessage=event => {
+    if (state.socket!==socket) return;
+    let msg;
+    try { msg=JSON.parse(event.data); } catch (_) { return; }
+
+    if (msg.error) {
+      setStatus("Market feed error: "+msg.error.message);
+      return;
     }
+    if (msg.msg_type==="tick" && msg.tick) processTick(msg.tick);
+  };
 
-    function navigate(target) {
-      const section = document.getElementById(target);
+  socket.onerror=() => {
+    if (state.socket===socket) setStatus("Connection issue — retrying");
+  };
+  socket.onclose=() => {
+    if (state.socket!==socket || state.intentionalClose) return;
+    setStatus("Disconnected — reconnecting");
+    state.reconnectTimer=setTimeout(connect,3000);
+  };
+}
 
-      if (!section) {
-        showNotice(
-          "This section is planned for the next development step. " +
-          "No live trading action has been performed."
-        );
-        return;
-      }
+function processTick(tick) {
+  const quote=Number(tick.quote);
+  if (!Number.isFinite(quote)) return;
+  const digit=extractDigit(quote,tick.pip_size);
+  state.ticks++;
+  state.prices.push(quote);
+  state.digits.push(digit);
+  state.counts[digit]++;
+  if (state.prices.length>200) {
+    state.prices.shift();
+  }
+  if (state.digits.length>2000) {
+    const removed=state.digits.shift();
+    state.counts[removed]=Math.max(0,state.counts[removed]-1);
+  }
+  render(quote,digit);
+}
 
-      if (titles[target]) {
-        pageTitle.textContent = titles[target];
-      }
+function render(quote,digit) {
+  $("price").textContent=formatPrice(quote);
+  $("lastDigit").textContent=digit;
+  $("tickCount").textContent=state.ticks+" ticks received";
+  $("sampleSize").textContent=state.digits.length;
+  $("historyCount").textContent=state.digits.length;
 
-      document.querySelectorAll(".nav-item").forEach(function(item) {
-        item.classList.toggle(
-          "active",
-          item.dataset.target === target
-        );
-      });
+  if (state.prices.length>1) {
+    const first=state.prices[0], last=state.prices[state.prices.length-1];
+    const diff=last-first;
+    $("priceChange").textContent="Window change: "+(diff>=0?"+":"")+diff.toFixed(3);
+    $("priceChange").className="small "+(diff>0?"up":diff<0?"down":"muted");
+  }
 
-      section.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    }
+  renderChart();
+  renderDigits();
+  renderHistory();
+  analyse();
+}
 
-    document.querySelectorAll("[data-target]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        navigate(button.dataset.target);
-      });
-    });
+function renderChart() {
+  const svg=$("chart"), data=state.prices;
+  if (data.length<2) return;
+  const min=Math.min(...data), max=Math.max(...data);
+  const range=max-min || 1;
+  const points=data.map((v,i)=>{
+    const x=8+i*(684/(data.length-1));
+    const y=175-((v-min)/range)*155;
+    return x.toFixed(1)+","+y.toFixed(1);
+  }).join(" ");
+  svg.innerHTML='<polyline points="'+points+'" fill="none" stroke="#55e4ef" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+}
 
-    document.querySelectorAll("[data-go]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        const target = button.dataset.go;
+function renderDigits() {
+  const total=state.digits.length;
+  $("digits").innerHTML=state.counts.map((count,d)=>{
+    const pct=total?count/total*100:0;
+    return '<div class="digit">'+d+
+      '<div class="small muted">'+pct.toFixed(0)+'%</div>'+
+      '<div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+  }).join("");
+}
 
-        if (target === "manualPreview") {
-          showNotice(
-            "Manual trading controls will be built in a later step. " +
-            "This button does not place an order."
-          );
-          return;
-        }
+function renderHistory() {
+  $("history").innerHTML=state.digits.slice(-24).reverse().map(d=>"<span>"+d+"</span>").join("");
+}
 
-        if (target === "chartPreview") {
-          navigate("markets");
-          showNotice(
-            "Live chart integration is not connected yet."
-          );
-          return;
-        }
+function analyse() {
+  const p=state.prices;
+  if (p.length<20) {
+    $("trend").textContent="COLLECTING DATA";
+    $("trend").className="neutral";
+    $("trendReason").textContent="Need at least 20 recent prices; currently "+p.length+".";
+    $("signal").textContent="WAIT";
+    $("signalReason").textContent="Insufficient sample. No trades are being placed.";
+    return;
+  }
 
-        if (target === "accountPreview") {
-          navigate("account");
-          showNotice(
-            "Secure Deriv login will be configured in a later step."
-          );
-          return;
-        }
+  const recent=p.slice(-10), prior=p.slice(-20,-10);
+  const avg=a=>a.reduce((s,v)=>s+v,0)/a.length;
+  const change=avg(recent)-avg(prior);
+  const scale=Math.abs(avg(prior))||1;
+  const threshold=scale*0.00002;
+  const direction=change>threshold?"UP":change< -threshold?"DOWN":"SIDEWAYS";
+  $("trend").textContent=direction;
+  $("trend").className=direction==="UP"?"up":direction==="DOWN"?"down":"neutral";
+  $("trendReason").textContent="Compares the latest 10 prices with the preceding 10. This is descriptive, not a guarantee.";
 
-        navigate(target);
-      });
-    });
-  </script>
+  $("support").textContent=formatPrice(Math.min(...p.slice(-20)));
+  $("resistance").textContent=formatPrice(Math.max(...p.slice(-20)));
+
+  if (direction==="SIDEWAYS") {
+    $("signal").textContent="WAIT";
+    $("signalReason").textContent="No clear short-term average-price direction.";
+  } else {
+    $("signal").textContent="OBSERVE "+direction;
+    $("signalReason").textContent="Directional movement observed. Confirm independently before considering a demo test.";
+  }
+}
+
+$("market").addEventListener("change",event=>{
+  state.symbol=event.target.value;
+  state.prices=[];
+  state.digits=[];
+  state.counts=Array(10).fill(0);
+  state.ticks=0;
+  $("price").textContent="Waiting for ticks…";
+  $("priceChange").textContent="Price change: —";
+  $("lastDigit").textContent="—";
+  $("sampleSize").textContent="0";
+  $("tickCount").textContent="0 ticks";
+  $("support").textContent="—";
+  $("resistance").textContent="—";
+  $("history").innerHTML='<span class="muted">Waiting for market ticks…</span>';
+  $("chart").innerHTML='<text x="350" y="95" fill="#9eb0ca" text-anchor="middle">Waiting for live market data…</text>';
+  connect();
+});
+
+$("reconnect").addEventListener("click",connect);
+connect();
+</script>
 </body>
-</html>
+  </html>
